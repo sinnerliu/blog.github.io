@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=1, minimum-scale=1, maximum-scale=1">
+<meta name="renderer" content="webkit">
+<meta name="google" value="notranslate">
+<meta name="robots" content="index,follow">
+
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="纸小墨官方博客">
+<meta name="twitter:description" content="构建只为纯粹书写的博客">
+<meta name="twitter:image:src" content="http://www.chole.io/blog/images/avatar.png">
+
+<meta property="og:url" content="http://www.chole.io/blog">
+<meta property="og:title" content="纸小墨官方博客">
+<meta property="og:description" content="构建只为纯粹书写的博客">
+<meta property="og:site_name" content="纸小墨官方博客">
+<meta property="og:image" content="http://www.chole.io/blog/images/avatar.png">
+<meta property="og:type" content="website">
+<meta name="robots" content="noodp">
+
+<meta itemprop="name" content="纸小墨官方博客">
+<meta itemprop="description" content="构建只为纯粹书写的博客">
+<meta itemprop="image" content="http://www.chole.io/blog/images/avatar.png">
+
+<link rel="canonical" href="http://www.chole.io/blog">
+
+<link rel="shortcut icon" href="/favicon.png">
+<link rel="apple-itouch-icon" href="/favicon.png">
+<link rel="stylesheet" href="/bundle/index.css">
+<script type="text/javascript">
+    var timeSinceLang = {
+        year: '年前',
+        month: '个月前',
+        day: '天前',
+        hour: '小时前',
+        minute: '分钟前',
+        second: '秒前'
+    };
+    var root = '';
+</script>
+
+<script type="text/javascript">
+    var conn, reloadTimer, connectTimer;
+    var connect = function() {
+        conn = new WebSocket('ws://' + location.host + '/live');
+        conn.onmessage = function(event) {
+            if (event.data === 'change') {
+                if (reloadTimer) clearTimeout(reloadTimer);
+                reloadTimer = setTimeout(function() {
+                    window.location.reload();
+                }, 200);
+            }
+        };
+        conn.onclose = function() {
+            if (connectTimer) clearTimeout(connectTimer);
+            connectTimer = setTimeout(function() {
+                connect();
+            }, 1000);
+        };
+    };
+    connect();
+</script>
+
+
+        <meta name="keywords" content="标签1,标签2,">
+        <meta name="description" content="文章标题">
+        <meta name="author" content="">
+        <title>文章标题</title>
+    </head>
+    <body>
+        <article class="container">
+            <header class="header-wrap">
+  <a class="index" href="/">
+    <img class="logo" src="/images/avatar.png" />
+    纸小墨官方博客
+  </a>
+  <ul class="menu">
+      <li class="menu-item"><a href="/archive.html">归档</a></li>
+      <li class="menu-item"><a href="/tag.html">标签</a></li>
+      <li class="menu-item"><a href="/atom.xml">订阅</a></li>
+  </ul>
+</header>
+
+            <article class="main article">
+                <h1 class="title">文章标题</h1>
+                <section class="info">
+                    
+                    
+                    
+                    <span class="date" data-time="1489988820"><span class="from"></span></span>
+                    
+                    <span class="tags"><a class="tag" href="/tag/%e6%a0%87%e7%ad%be1/index.html">标签1</a><a class="tag" href="/tag/%e6%a0%87%e7%ad%be2/index.html">标签2</a></span>
+                </section>
+                <article class="content"><h1>测试桩流式数据格式</h1>
+
+<h2>方式</h2>
+
+<p>由测试桩发送数据( <strong>模拟ogg解析后的数据，已经解析的数据</strong> )入Kafka完成后，测试开始</p>
+
+<p>##数据格式</p>
+
+<p>Kafka中的消息其格式描述如下：</p>
+
+<pre><code>处理进程标识:SCN标识号:事务ID:本地事务ID:事务标识:重建事务ID:当前操作在事务中的位置,Catalog名.Schema名.table名,操作类型,时间戳,列索引0:当前值:原始值,列索引1:当前值:原始值,列索引2:当前值:原始值……
+
+</code></pre>
+
+<ul>
+<li><p>一级分隔符用&rsquo;,&lsquo;(逗号)表示，二级分隔符用&rsquo;:&lsquo;(冒号)表示；</p></li>
+
+<li><p>实际的消息中用0x01替换了逗号，0x02、0x03或0x04替换了冒号（用不可见字符作分隔符是为了避免字段值中可能包含分隔符从而导致消息解析出错）；</p></li>
+
+<li><p>表的列索引值-列名对应关系和主键单独在一个def文件中描述。数据更新时消息记录只包含主键列和数据修改的列。</p></li>
+
+<li><p>分隔符为16进制的，详细看后面的样例数据解释。</p></li>
+</ul>
+
+<p>##数据格式说明</p>
+
+<p><strong>应用(省分)侧从kafka中读取一条消息后，可先按一级分隔符拆分，解析出的元素个数应大于等于5个</strong></p>
+
+<p>###第一个元素</p>
+
+<pre><code>处理进程标识:SCN标识号:事务ID:本地事务ID:事务标识:重建事务ID:当前操作在事务中的位置
+</code></pre>
+
+<p><strong>说明：</strong></p>
+
+<ul>
+<li>进程标识：一个ASCII码表示的字符串，用来标识发送消息的进程；</li>
+<li>SCN标识号：一个ASCII码表示的数值，用来在初始化数据时过滤消息；</li>
+<li>事务Id：一个ASCII码表示的数值，当前本次操作操作所属的数据库事务Id；</li>
+<li>本地事务Id：一个ASCII码表示的数值，辅助事务Id重建事务的Id；</li>
+<li>事务标识：一个ASCII码表示的数值，指出该消息处在当前事务中位置(0开始、1中间、2结尾、3WHOLE、4UNKNOWN等)；</li>
+<li>重建事务ID：用于消息接收方有事务要求的情况，标识源端数据库事务的标识，一组事务的所有操作的重建事务ID相同；</li>
+<li>当前操作在事务中的位置：用于消息接收方有事务要求的情况，表示该操作在事务中是第几个操作，与重建事务ID配合使用。</li>
+</ul>
+
+<p>###第二个元素</p>
+
+<pre><code>Catalog名.Schema名.table名
+</code></pre>
+
+<p><strong>说明：</strong></p>
+
+<ul>
+<li>分别对应该日志发生的表名以及所属的Schema。</li>
+</ul>
+
+<p>###第三个元素</p>
+
+<pre><code>操作类型
+</code></pre>
+
+<p><strong>说明：</strong></p>
+
+<ul>
+<li>对应ASCII码 &lsquo;I&rsquo;(插入)、&rsquo;D&rsquo;(删除)、&rsquo;U&rsquo;(更新)、&rsquo;K&rsquo;(更新的列包含主键列或唯一索引列)。</li>
+</ul>
+
+<p>###第四个元素</p>
+
+<pre><code>时间戳
+</code></pre>
+
+<p><strong>说明：</strong></p>
+
+<ul>
+<li>代表该操作发生的时间，格式为yyyyMMddHHmmssssss。</li>
+</ul>
+
+<p>###第五个元素</p>
+
+<pre><code>列索引0:当前值:原始值
+</code></pre>
+
+<p><strong>说明：</strong></p>
+
+<ul>
+<li>从该项始将描述表中该行数据的各列数值，每项对应一个变更列。数据的每个项目中二级分隔符有3种取值：0x02或0x03或0x04。为0x02时表示后面有数据(数据长度可能为0，也可能不为0)；为0x03时表示为后面的值为数据库意义上的NULL；为0x04时表示该状态下没有这一列(两种场景会出现0x04：insert时旧值前的分隔符和delete时新值前的分隔符)。</li>
+</ul>
+
+<p>###其他说明</p>
+
+<p>为提高吞吐量，减少消息中重复数据(如列名、主键信息)的存储和传输，为需要同步的Oracle表创建了元数据信息文件，称作def文件(样例见附件)。Consumer从def文件中可以获取列索引对应的列的详细信息(长度、类型、是否为主键或唯一索引列等)，故消息中并无整体数据的元数据信息。</p>
+
+<p>##数据样例说明</p>
+
+<p>下面以TF_B_PAYLOG表为例，给出各个操作类型下kafka消息的样例。注：为直观，此处样例中展示的消息，一级分割符用逗号，二级分隔符用冒号；正式的消息中，会用0x01作为一级分隔符，二级分隔符视场景的不同会有0x02、0x03、0x04三种取值，第1-4个元素中的二级分隔符均为0x02，从第五个元素开始的每个元素中的二级分隔符，可能会有0x02、0x03、0x04三种取值。为0x02时表示后面有数据(数据长度可能为0，也可能不为0)；为0x03时表示为后面的值为数据库意义上的NULL；为0x04时表示该状态下没有这一列(两种场景会出现0x04：insert时旧值前的分隔符和delete时新值前的分隔符)。</p>
+
+<p>###表信息
+该表包含43列，列索引从0到42，其中，CHARGE_ID和PARTITION_ID列为主键列。关于表的详细定义信息见附件def文件。</p>
+
+<p>###Delete操作</p>
+
+<p>####语句：</p>
+
+<blockquote>
+<p>DELETE FROM TF_B_PAYLOG WHERE CHARGE_ID=1042;</p>
+</blockquote>
+
+<p>####消息：</p>
+
+<pre><code>ACT_CUE1:29605250:00000001910094667555:0:3:00000001910094667555:1,BIGDATA.TF_B_PAYLOG,D,2016-01-12 07:27:00.530097,0::1042,1::10,2::23,3::34,4::234,5::,6::53,7::2,8::345,9::4243,10::100004,11::34,12::42,13::43,14::,15::2015-10-21:17:28:56,16::56,17::56,18::534,19::567,20::54,21::,22::86,23::35,24::0,25::1,26::342,27::54,28::46,29::23,30::3,31::65,32::23,33::673,34::56,35::2015-10-21:17:28:56,36::58,37::84,38::83,39::45,40::11,41::23,42::235
+</code></pre>
+
+<p>####说明：</p>
+
+<ul>
+<li>ACT_CUE1:29605250:00000001910094667555:0:3:00000001910094667555:1为第一个元素，ACT_CUE1是进程标识，29605250是SCN标识号，00000001910094667555为事务Id，0为本地事务Id，3为事务标识，00000001910094667555为重建事务ID，1为当前操作在事务中的位置；</li>
+<li>BIGDATA.TF_B_PAYLOG为第二个元素’ Catalog名.Schema名.table名’；</li>
+<li>D为第三个元素’操作类型’，表示是删除操作；</li>
+<li>2016-01-12 07:27:00.530097为第四个元素’时间戳’；</li>
+<li>从第五个元素0::1042开始的每个元素是列变更信息，因为是删除操作，所以’当前值’均为空，且当前值前面的二级分隔符为0x04，原始值前面的二级分隔符为0x02或0x03（正式消息中）。</li>
+</ul>
+
+<p>###Insert操作</p>
+
+<p>####消息：</p>
+
+<pre><code>ACT_CUE1:29605626:00000001910094668226:0:3:00000001910094668226:1,BIGDATA.TF_B_PAYLOG,I,2016-01-12 07:41:19.509712,0:1044:,1:10:,2:23:,3:34:,4:234:,5::,6:53:,7:2:,8:345:,9:4243:,10:100004:,11:34:,12:42:,13:43:,14::,15:2015-10-21:17:29:31:,16:56:,17:56:,18:534:,19:567:,20:54:,21::,22:86:,23:35:,24:0:,25:1:,26:342:,27:54:,28:46:,29:23:,30:3:,31:65:,32:23:,33:673:,34:56:,35:2015-10-21:17:29:31:,36:58:,37:84:,38:83:,39:45:,40:11:,41:23:,42:235:
+</code></pre>
+
+<p>####说明：</p>
+
+<ul>
+<li>ACT_CUE1:29605626:00000001910094668226:0:3:00000001910094667555:1为第一个元素，ACT_CUE1是进程标识, 29605626是scn标识号，00000001910094668226是事务Id，0是本地事务Id，3为事务标识，00000001910094667555为重建事务ID，1为当前操作在事务中的位置；</li>
+<li>BIGDATA.TF_B_PAYLOG是第二元素；</li>
+<li>I为第三个元素’操作类型’，表示插入操作</li>
+<li>2016-01-12 07:41:19.509712为第四个元素；</li>
+<li>从第五个元素0:1044:开始的每个元素是列变更信息，因为是插入操作，所以原始值均为空，且原始值前面的二级分隔符为0x04，当前值前面的分隔符为0x02或0x03（正式消息中）。</li>
+</ul>
+
+<p>###Update操作</p>
+
+<p>####语句：</p>
+
+<blockquote>
+<p>UPDATE TF_B_PAYLOG SET ACCT_ID=000,REMARK=&lsquo;HELLO&rsquo; WHERE CHARGE_ID=1044;</p>
+</blockquote>
+
+<p>####消息：</p>
+
+<pre><code>ACT_CUE1:29605827:00000001910094669096:0:2:00000001910094667555:1,BIGDATA.TF_B_PAYLOG,U,2016-01-12 07:50:43.496418,0:1044:1044,1:10:10,8:0:345,29:hello:23
+</code></pre>
+
+<p>####说明：</p>
+
+<ul>
+<li>ACT_CUE1:29605827:00000001910094669096:0:2:00000001910094668226:1为第一个元素，ACT_CUE1为进程标识，29605827为scn标识号，00000001910094669096为事务Id，0为本地事务Id，2为事务标识，00000001910094667555为重建事务ID，1为当前操作在事务中的位置；</li>
+<li>BIGDATA.TF_B_PAYLOG为第二个元素；</li>
+<li>U为第三个元素’操作类型’,表示更新的列均为普通列</li>
+<li>2016-01-12 07:50:43.496418为第四个元素；</li>
+<li>从第五个元素0:1044:1044开始的元素为列变更信息，由于此处更新的是第9和第30列（非主键列和唯一索引列），所以消息中只包含主键列（第一列和第二列）和变更列（第9列和第30列）的信息，且原始值和当前值前面的二级分隔符均为0x02（正式消息中）。</li>
+</ul>
+
+<p>#测试脚本及测试桩要求</p>
+
+<ol>
+<li><p>测试数据来源于csv文件，合作伙伴将源数据格式转导为kafka格式，数据转导工具三家一致，转导后源数据存放在文本中；loadrunner脚本需要支持从文本逐条提取源数据的能力；</p></li>
+
+<li><p>对于大批量持续压力往kafka里压数据的场景，loadrunner调用java程序将消息发布到kafka；</p></li>
+
+<li><p>Java脚本三家用一套，由国信提供；</p></li>
+
+<li><p>LoadRunner脚本用一套，由亚信提供；脚本要求：</p></li>
+</ol>
+
+<p>（1）从文本中逐行提取数据，根据系统确定Topic，根据表名确定Partition，将此文本中的单行数据，调用java程序，将文本发送至对应的Topic及Partition中；</p>
+
+<p>（2）在上述要求的基础上，增加通过Rest API查询“自然人360视图”的功能；此功能针对已发送到kafka的数据，进行循环查询自然人，查询到结果后，结束当前脚本。</p>
+
+<ol>
+<li>测试用到的kafka由各家自行搭建，kafka版本号由软研院统一要求；</li>
+<li>Topic命名规则：XJ、SH、CB；每个topic包含3个Partition。</li>
+</ol>
+
+<p>#分工界面</p>
+
+<ol>
+<li>Java程序，由国信于2月23日前提供；</li>
+<li>LoadRunner脚本，由亚信于2月27日前提供，视硬件资源协调到位时间适当调整提供时间;</li>
+<li>csv转导工具，由华软于2月23日前提供。</li>
+</ol>
+</article>
+                <section class="author">
+                    
+                    <a class="name" href="/about..html"></a>
+                    <div class="intro"></div>
+                </section>
+                <section class="recommend">
+                    
+                    
+                    <section class="nav next">
+                        <div class="head">下篇文章</div>
+                        <a class="link" href="/ink-blog-tool.html">简洁的静态博客构建工具 —— 纸小墨（InkPaper）</a>
+                    </section>
+                    
+                </section>
+                
+    <section id="disqus_thread"></section>
+    <script type="text/javascript">
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//username.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+
+
+            </article>
+        </article>
+        <footer class="footer">
+    <span class="copyright">
+        纸小墨官方博客 ©
+        <script type="text/javascript">
+            document.write(new Date().getFullYear());
+        </script>
+    </span>
+    <span class="publish">Powered by <a href="http://www.chole.io/" target="_blank">Ink</a></span>
+</footer>
+
+        <script src="/bundle/index.js"></script>
+    </body>
+</html>
